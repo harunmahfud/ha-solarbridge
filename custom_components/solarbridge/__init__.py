@@ -10,10 +10,10 @@ async def async_setup_entry(hass, entry) -> bool:
     from .const import CONF_POLL_INTERVAL, CONF_PROFILE, CONF_UNIT_ID, DOMAIN, PLATFORMS
     from .coordinator import SolarBridgeCoordinator
     from .modbus import SolarBridgeModbusClient
-    from .profile import load_profile
+    from .profile import async_load_profile
 
     config = {**entry.data, **entry.options}
-    profile = await hass.async_add_executor_job(load_profile, config[CONF_PROFILE])
+    profile = await async_load_profile(hass, config[CONF_PROFILE])
     client = SolarBridgeModbusClient(
         config[CONF_HOST], config[CONF_PORT], config[CONF_UNIT_ID], hass.async_add_executor_job
     )

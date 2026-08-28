@@ -10,6 +10,7 @@
     },
     "error": {
       "cannot_connect": "Cannot connect. Check the host, port, gateway power, and network.",
+      "invalid_host": "Enter a valid IP address or hostname.",
       "invalid_unit_or_profile": "The gateway connected but the inverter did not return the expected registers. Check the slave ID and profile.",
       "unknown": "Unexpected error while testing the connection. Check the logs."
     },
@@ -24,6 +25,7 @@
     },
     "error": {
       "cannot_connect": "Cannot connect with these settings.",
+      "invalid_host": "Enter a valid IP address or hostname.",
       "invalid_unit_or_profile": "Connected, but the inverter did not return the expected registers.",
       "unknown": "Unexpected error while testing the connection."
     }
