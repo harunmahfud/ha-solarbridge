@@ -2,12 +2,12 @@
   "title": "SolarBridge",
   "config": {
     "step": {"user":{"title":"Connect an inverter","description":"Connect directly over Modbus TCP. Port 502 is typical for RS485 gateways; Deye WiFi/LAN loggers commonly use 8899.","data":{"host":"Host","port":"Port","unit_id":"Modbus unit / slave ID","profile":"Inverter profile","poll_interval":"Poll interval (seconds)"}}},
-    "error":{"cannot_connect":"Cannot connect. Check the host, port, gateway power, and network.","invalid_unit_or_profile":"The gateway connected but the inverter did not return the expected registers. Check the slave ID and profile.","unknown":"Unexpected error while testing the connection. Check the logs."},
+    "error":{"cannot_connect":"Cannot connect. Check the host, port, gateway power, and network.","invalid_host":"Enter a valid IP address or hostname.","invalid_unit_or_profile":"The gateway connected but the inverter did not return the expected registers. Check the slave ID and profile.","unknown":"Unexpected error while testing the connection. Check the logs."},
     "abort":{"already_configured":"This inverter is already configured."}
   },
   "options": {
     "step":{"init":{"title":"Update connection settings","data":{"host":"Host","port":"Port","poll_interval":"Poll interval (seconds)"}}},
-    "error":{"cannot_connect":"Cannot connect with these settings.","invalid_unit_or_profile":"Connected, but the inverter did not return the expected registers.","unknown":"Unexpected error while testing the connection."}
+    "error":{"cannot_connect":"Cannot connect with these settings.","invalid_host":"Enter a valid IP address or hostname.","invalid_unit_or_profile":"Connected, but the inverter did not return the expected registers.","unknown":"Unexpected error while testing the connection."}
   },
   "entity": {
     "sensor": {

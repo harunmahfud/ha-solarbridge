@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from homeassistant.core import HomeAssistant
+
 from .const import MAX_READ_REGISTERS, PROFILE_DIR
 
 SUPPORTED_TYPES = {"uint16", "int16", "uint32", "string", "decimal_hhmm"}
@@ -40,6 +42,13 @@ def available_profiles(directory: Path = PROFILE_DIR) -> dict[str, str]:
     return profiles
 
 
+async def async_available_profiles(
+    hass: HomeAssistant, directory: Path = PROFILE_DIR
+) -> dict[str, str]:
+    """Return profiles without blocking the event loop on file I/O."""
+    return await hass.async_add_executor_job(available_profiles, directory)
+
+
 def load_profile(filename: str, directory: Path = PROFILE_DIR) -> dict[str, Any]:
     """Load a JSON-compatible YAML profile without a runtime YAML dependency."""
     if Path(filename).name != filename or not filename.endswith(".yaml"):
@@ -51,6 +60,13 @@ def load_profile(filename: str, directory: Path = PROFILE_DIR) -> dict[str, Any]
         raise ProfileError(f"Unable to load profile {filename}: {err}") from err
     validate_profile(profile)
     return profile
+
+
+async def async_load_profile(
+    hass: HomeAssistant, filename: str, directory: Path = PROFILE_DIR
+) -> dict[str, Any]:
+    """Load a profile without blocking the event loop on file I/O."""
+    return await hass.async_add_executor_job(load_profile, filename, directory)
 
 
 def read_ranges(profile: dict[str, Any], tier: str) -> list[ReadRange]:
