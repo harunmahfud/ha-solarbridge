@@ -11,7 +11,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import FAILURE_THRESHOLD, SLOW_POLL_INTERVAL
 from .decoder import decode_profile
-from .modbus import SolarBridgeModbusClient
+from .modbus import ReconnectBackoffActive, SolarBridgeModbusClient
 from .profile import read_ranges
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,6 +39,11 @@ class SolarBridgeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._slow_due = monotonic() + SLOW_POLL_INTERVAL
             self._failures = 0
             return data
+        except ReconnectBackoffActive as err:
+            _LOGGER.debug("SolarBridge poll deferred: %s", err)
+            if self.data is not None:
+                return self.data
+            raise UpdateFailed(f"Modbus polling deferred: {err}", retry_after=err.remaining) from err
         except Exception as err:
             self._failures += 1
             if self._failures < FAILURE_THRESHOLD and self.data is not None:
