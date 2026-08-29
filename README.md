@@ -10,10 +10,10 @@ SolarBridge is read-only. Write support is deliberately excluded from v1: incorr
 ## Features
 
 - UI config and options flows accepting IP addresses and hostnames
-- Lazy DNS resolution on reconnect, serialized Modbus access, exponential reconnect backoff
+- Lazy DNS resolution on reconnect, serialized Modbus access, and exponential reconnect backoff that preserves last-known-good data without counting deferred polls as failed connection attempts
 - Profile-declared fast and slow polling tiers (minimum fast interval: 1 second)
 - Correct Home Assistant device/state classes, diagnostics, and stable `{entry_id}_{register_key}` unique IDs
-- Versioned, schema-validated register profiles and automatic unavailability after repeated failures
+- Versioned, schema-validated register profiles and automatic unavailability after three consecutive read or decode failures
 - Multiple independent inverter config entries
 
 ## HACS installation
