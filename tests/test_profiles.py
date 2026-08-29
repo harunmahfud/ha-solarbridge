@@ -38,6 +38,23 @@ def test_sg05lp1_corrections_are_explicit():
     assert sensors["tou_1_generator_charge"]["bitmask"] == 0b10
 
 
+def test_documented_power_register_types_and_addresses():
+    profile = load_profile("deye_sg05lp1_eu_sm2_p.yaml")
+    sensors = {sensor["key"]: sensor for sensor in profile["sensors"]}
+    expected = {
+        "grid_power": (169, "int16"),
+        "inverter_power": (173, "int16"),
+        "load_power": (178, "uint16"),
+        "pv1_power": (186, "uint16"),
+        "pv2_power": (187, "uint16"),
+        "battery_power": (190, "int16"),
+        "battery_current": (191, "int16"),
+    }
+    for key, (address, data_type) in expected.items():
+        assert sensors[key]["address"] == address
+        assert sensors[key]["data_type"] == data_type
+
+
 def test_uncovered_register_is_rejected():
     profile = load_profile("deye_sg05lp1_eu_sm2_p.yaml")
     invalid = deepcopy(profile)

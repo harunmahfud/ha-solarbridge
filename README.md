@@ -33,6 +33,28 @@ The SM2-P profile reads only `3–112`, `150–249`, and `250–279`, all within
 
 Register `0x009A` (154) is exposed read-only as **Inverter Output Voltage** (`uint16`, 0.1 V), following maintained Deye/Sunsynk single-phase register maps. The existing `150–249` read already includes this register, so the entity adds no Modbus request. Physical comparison with the SUN-6K-SG05LP1-EU-SM2-P inverter display was not possible in automated validation; treat the value as model-specific and verify it before relying on it for diagnostics.
 
+### Power sign semantics
+
+SolarBridge exposes the profile's decoded and scaled register values without
+normalizing or inverting their signs. For the validated
+SUN-6K-SG05LP1-EU-SM2-P profile, use these semantics:
+
+| Register / entity | Positive | Negative | Notes |
+| --- | --- | --- | --- |
+| 169 · Grid power | Importing from grid | Exporting to grid | Signed `int16`, W |
+| 173 · Inverter power | Supplying AC output | Absorbing AC power | Signed `int16`, W; this is the L1/output register and does not identify whether the source is PV, battery, or grid |
+| 178 · Load power | Load consumption | Not expected from the unsigned register | `uint16`, W |
+| 186/187 · PV1/PV2 power | PV generation | Not expected from the unsigned registers | Separate string values; no aggregate PV value is calculated |
+| 190 · Battery power | Discharging | Charging | Signed `int16`, W |
+| 191 · Battery current | Discharging | Charging | Signed `int16`, scaled to A; follows the battery-power direction |
+
+Maintained Deye mappings identify register 175 as aggregate inverter output
+power, while this exact profile currently exposes register 173 as L1/output
+power. The values matched on the validated single-phase unit during read-only
+sampling, but that does not establish equivalence on every firmware or model.
+Register 175 is therefore not silently substituted or exposed without further
+model validation.
+
 ## Development
 
 ```bash
