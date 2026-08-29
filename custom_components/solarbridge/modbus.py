@@ -6,6 +6,7 @@ import asyncio
 import inspect
 import logging
 from collections.abc import Callable
+from math import ceil
 from time import monotonic
 from typing import Any
 
@@ -18,6 +19,15 @@ _LOGGER = logging.getLogger(__name__)
 
 class ModbusConnectionError(Exception):
     """Transport connection failed."""
+
+
+class ReconnectBackoffActive(ModbusConnectionError):
+    """A read was deferred until the reconnect backoff expires."""
+
+    def __init__(self, remaining: float) -> None:
+        self.remaining = remaining
+        displayed = ceil(remaining * 10) / 10
+        super().__init__(f"Reconnect backoff active for {displayed:.1f}s")
 
 
 class ModbusResponseError(Exception):
@@ -41,7 +51,7 @@ class SolarBridgeModbusClient:
         async with self._lock:
             remaining = self._retry_at - monotonic()
             if remaining > 0:
-                raise ModbusConnectionError(f"Reconnect backoff active for {remaining:.1f}s")
+                raise ReconnectBackoffActive(remaining)
             try:
                 values = await self._executor(self._read_sync, ranges)
             except Exception:
