@@ -31,6 +31,8 @@ Profiles live under `custom_components/solarbridge/profiles/v1/`. Each YAML file
 
 The SM2-P profile reads only `3–112`, `150–249`, and `250–279`, all within the FC03 125-register limit. It intentionally excludes split-phase/L2 entities and exposes register `0x00A6` as signed **AUX Port Power** and `0x00C3` as diagnostic **AUX Status Raw**.
 
+Register `0x009A` (154) is exposed read-only as **Inverter Output Voltage** (`uint16`, 0.1 V), following maintained Deye/Sunsynk single-phase register maps. The existing `150–249` read already includes this register, so the entity adds no Modbus request. Physical comparison with the SUN-6K-SG05LP1-EU-SM2-P inverter display was not possible in automated validation; treat the value as model-specific and verify it before relying on it for diagnostics.
+
 ## Development
 
 ```bash
