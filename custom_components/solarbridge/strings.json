@@ -41,7 +41,7 @@
       "daily_load_consumption":{"name":"Daily load consumption"},"total_load_consumption":{"name":"Total load consumption"},
       "dc_temperature":{"name":"DC temperature"},"ac_temperature":{"name":"AC temperature"},
       "total_production":{"name":"Total production"},"daily_production":{"name":"Daily production"},
-      "grid_voltage":{"name":"Grid voltage"},"load_voltage":{"name":"Load voltage"},"grid_current":{"name":"Grid current"},
+      "grid_voltage":{"name":"Grid voltage"},"inverter_output_voltage":{"name":"Inverter output voltage"},"load_voltage":{"name":"Load voltage"},"grid_current":{"name":"Grid current"},
       "inverter_current":{"name":"Inverter current"},"aux_port_power":{"name":"AUX port power"},
       "internal_ct_power":{"name":"Internal CT power"},"grid_power":{"name":"Grid power"},
       "external_ct_power":{"name":"External CT power"},"inverter_power":{"name":"Inverter power"},"load_power":{"name":"Load power"},

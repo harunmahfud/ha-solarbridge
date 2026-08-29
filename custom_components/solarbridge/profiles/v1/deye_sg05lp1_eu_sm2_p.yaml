@@ -31,6 +31,7 @@
     {"key":"daily_production","name":"Daily Production","address":108,"function":3,"data_type":"uint16","scale":0.1,"offset":0,"word_order":"low_high","polling_tier":"slow","unit":"kWh","device_class":"energy","state_class":"total_increasing"},
 
     {"key":"grid_voltage","name":"Grid Voltage","address":150,"function":3,"data_type":"uint16","scale":0.1,"offset":0,"word_order":"low_high","polling_tier":"fast","unit":"V","device_class":"voltage","state_class":"measurement"},
+    {"key":"inverter_output_voltage","name":"Inverter Output Voltage","address":154,"function":3,"data_type":"uint16","scale":0.1,"offset":0,"word_order":"low_high","polling_tier":"fast","unit":"V","device_class":"voltage","state_class":"measurement"},
     {"key":"load_voltage","name":"Load Voltage","address":157,"function":3,"data_type":"uint16","scale":0.1,"offset":0,"word_order":"low_high","polling_tier":"fast","unit":"V","device_class":"voltage","state_class":"measurement"},
     {"key":"grid_current","name":"Grid Current","address":160,"function":3,"data_type":"uint16","scale":0.01,"offset":0,"word_order":"low_high","polling_tier":"fast","unit":"A","device_class":"current","state_class":"measurement"},
     {"key":"inverter_current","name":"Inverter Current","address":164,"function":3,"data_type":"int16","scale":0.01,"offset":0,"word_order":"low_high","polling_tier":"fast","unit":"A","device_class":"current","state_class":"measurement"},
