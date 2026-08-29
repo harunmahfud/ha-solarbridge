@@ -6,6 +6,7 @@ from copy import deepcopy
 import pytest
 
 from custom_components.solarbridge.const import MAX_READ_REGISTERS, PROFILE_DIR
+from custom_components.solarbridge.decoder import decode_value
 from custom_components.solarbridge.profile import ProfileError, load_profile, validate_profile
 
 
@@ -24,6 +25,13 @@ def test_sg05lp1_corrections_are_explicit():
     assert sensors["total_grid_bought"]["addresses"] == [78, 80]
     assert sensors["aux_port_power"]["data_type"] == "int16"
     assert sensors["aux_status_raw"]["entity_category"] == "diagnostic"
+    inverter_voltage = sensors["inverter_output_voltage"]
+    assert inverter_voltage["address"] == 154
+    assert inverter_voltage["unit"] == "V"
+    assert inverter_voltage["device_class"] == "voltage"
+    assert inverter_voltage["state_class"] == "measurement"
+    assert decode_value(inverter_voltage, {154: 2301}) == 230.1
+    assert any(item["start"] <= 154 < item["start"] + item["count"] for item in profile["ranges"])
     assert not any("l2" in key or "gen_power" in key or "micro_inverter" in key for key in sensors)
     assert sensors["tou_time_1"]["data_type"] == "decimal_hhmm"
     assert sensors["tou_1_grid_charge"]["bitmask"] == 0b01
