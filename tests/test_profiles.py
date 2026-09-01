@@ -38,6 +38,26 @@ def test_sg05lp1_corrections_are_explicit():
     assert sensors["tou_1_generator_charge"]["bitmask"] == 0b10
 
 
+def test_sg05lp1_bms_block_matches_validated_registers():
+    profile = load_profile("deye_sg05lp1_eu_sm2_p.yaml")
+    sensors = {sensor["key"]: sensor for sensor in profile["sensors"]}
+    raw = {312: 5170, 313: 0, 314: 80, 315: 85, 316: 36, 317: 4965, 318: 0xFFFF, 319: 1321}
+    expected = {
+        "bms_charging_voltage": (312, 51.7),
+        "bms_discharge_voltage": (313, 0.0),
+        "bms_charge_current_limit": (314, 80),
+        "bms_discharge_current_limit": (315, 85),
+        "bms_soc": (316, 36),
+        "bms_voltage": (317, 49.65),
+        "bms_current": (318, -1),
+        "bms_temperature": (319, 32.1),
+    }
+    for key, (address, value) in expected.items():
+        assert sensors[key]["address"] == address
+        assert sensors[key]["polling_tier"] == "fast"
+        assert decode_value(sensors[key], raw) == value
+
+
 def test_documented_power_register_types_and_addresses():
     profile = load_profile("deye_sg05lp1_eu_sm2_p.yaml")
     sensors = {sensor["key"]: sensor for sensor in profile["sensors"]}

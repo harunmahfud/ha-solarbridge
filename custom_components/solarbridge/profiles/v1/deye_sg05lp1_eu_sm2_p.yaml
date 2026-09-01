@@ -9,7 +9,8 @@
     {"start": 79, "count": 1, "function": 3, "tier": "fast"},
     {"start": 109, "count": 4, "function": 3, "tier": "fast"},
     {"start": 150, "count": 100, "function": 3, "tier": "fast"},
-    {"start": 250, "count": 30, "function": 3, "tier": "slow"}
+    {"start": 250, "count": 30, "function": 3, "tier": "slow"},
+    {"start": 312, "count": 8, "function": 3, "tier": "fast"}
   ],
   "sensors": [
     {"key":"inverter_id","name":"Inverter ID","address":3,"register_count":5,"function":3,"data_type":"string","scale":1,"offset":0,"word_order":"high_low","polling_tier":"slow","entity_category":"diagnostic"},
@@ -85,6 +86,15 @@
     {"key":"tou_5_grid_charge","name":"TOU 5 Grid Charge","address":278,"function":3,"data_type":"uint16","scale":1,"offset":0,"word_order":"low_high","polling_tier":"slow","entity_category":"diagnostic","bitmask":1,"lookup":{"0":"Disabled","1":"Enabled"}},
     {"key":"tou_5_generator_charge","name":"TOU 5 Generator Charge","address":278,"function":3,"data_type":"uint16","scale":1,"offset":0,"word_order":"low_high","polling_tier":"slow","entity_category":"diagnostic","bitmask":2,"bitshift":1,"lookup":{"0":"Disabled","1":"Enabled"}},
     {"key":"tou_6_grid_charge","name":"TOU 6 Grid Charge","address":279,"function":3,"data_type":"uint16","scale":1,"offset":0,"word_order":"low_high","polling_tier":"slow","entity_category":"diagnostic","bitmask":1,"lookup":{"0":"Disabled","1":"Enabled"}},
-    {"key":"tou_6_generator_charge","name":"TOU 6 Generator Charge","address":279,"function":3,"data_type":"uint16","scale":1,"offset":0,"word_order":"low_high","polling_tier":"slow","entity_category":"diagnostic","bitmask":2,"bitshift":1,"lookup":{"0":"Disabled","1":"Enabled"}}
+    {"key":"tou_6_generator_charge","name":"TOU 6 Generator Charge","address":279,"function":3,"data_type":"uint16","scale":1,"offset":0,"word_order":"low_high","polling_tier":"slow","entity_category":"diagnostic","bitmask":2,"bitshift":1,"lookup":{"0":"Disabled","1":"Enabled"}},
+
+    {"key":"bms_charging_voltage","name":"BMS Charging Voltage","address":312,"function":3,"data_type":"uint16","scale":0.01,"offset":0,"word_order":"low_high","polling_tier":"fast","unit":"V","device_class":"voltage","state_class":"measurement"},
+    {"key":"bms_discharge_voltage","name":"BMS Discharge Voltage","address":313,"function":3,"data_type":"uint16","scale":0.01,"offset":0,"word_order":"low_high","polling_tier":"fast","unit":"V","device_class":"voltage","state_class":"measurement"},
+    {"key":"bms_charge_current_limit","name":"BMS Charge Current Limit","address":314,"function":3,"data_type":"uint16","scale":1,"offset":0,"word_order":"low_high","polling_tier":"fast","unit":"A","device_class":"current","state_class":"measurement"},
+    {"key":"bms_discharge_current_limit","name":"BMS Discharge Current Limit","address":315,"function":3,"data_type":"uint16","scale":1,"offset":0,"word_order":"low_high","polling_tier":"fast","unit":"A","device_class":"current","state_class":"measurement"},
+    {"key":"bms_soc","name":"BMS SOC","address":316,"function":3,"data_type":"uint16","scale":1,"offset":0,"word_order":"low_high","polling_tier":"fast","unit":"%","device_class":"battery","state_class":"measurement"},
+    {"key":"bms_voltage","name":"BMS Voltage","address":317,"function":3,"data_type":"uint16","scale":0.01,"offset":0,"word_order":"low_high","polling_tier":"fast","unit":"V","device_class":"voltage","state_class":"measurement"},
+    {"key":"bms_current","name":"BMS Current","address":318,"function":3,"data_type":"int16","scale":1,"offset":0,"word_order":"low_high","polling_tier":"fast","unit":"A","device_class":"current","state_class":"measurement"},
+    {"key":"bms_temperature","name":"BMS Temperature","address":319,"function":3,"data_type":"uint16","scale":0.1,"offset":-1000,"word_order":"low_high","polling_tier":"fast","unit":"°C","device_class":"temperature","state_class":"measurement"}
   ]
 }

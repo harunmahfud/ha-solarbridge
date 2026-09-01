@@ -29,7 +29,9 @@ Port `502` is the default for RS485-to-TCP gateways. Deye WiFi/LAN loggers commo
 
 Profiles live under `custom_components/solarbridge/profiles/v1/`. Each YAML file declares FC03/FC04 ranges and polling tiers plus every entity's address, type, scale, offset, word order, optional bitmask, unit, device/state class, tier, and display name. Filenames are persistent config-entry identifiers and are never renamed without migration support.
 
-The SM2-P profile reads only `3–112`, `150–249`, and `250–279`, all within the FC03 125-register limit. It intentionally excludes split-phase/L2 entities and exposes register `0x00A6` as signed **AUX Port Power** and `0x00C3` as diagnostic **AUX Status Raw**.
+The SM2-P profile reads only `3–112`, `150–279`, and `312–319`, all within the FC03 125-register limit. It intentionally excludes split-phase/L2 entities and exposes register `0x00A6` as signed **AUX Port Power** and `0x00C3` as diagnostic **AUX Status Raw**.
+
+The profile also reads the Li-BMS telemetry block at registers `312–319`. Register 183 is the inverter's battery-terminal voltage, while register 317 is the voltage reported by the BMS; small differences between them are expected. The BMS block was validated by direct FC03 reads from the supported SUN-6K-SG05LP1-EU-SM2-P.
 
 Register `0x009A` (154) is exposed read-only as **Inverter Output Voltage** (`uint16`, 0.1 V), following maintained Deye/Sunsynk single-phase register maps. The existing `150–249` read already includes this register, so the entity adds no Modbus request. Physical comparison with the SUN-6K-SG05LP1-EU-SM2-P inverter display was not possible in automated validation; treat the value as model-specific and verify it before relying on it for diagnostics.
 
