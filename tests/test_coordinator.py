@@ -4,10 +4,11 @@ import logging
 
 import pytest
 from homeassistant.helpers.update_coordinator import UpdateFailed
+from modbus_connection import ModbusConnectionError
 
 from custom_components.solarbridge.const import FAILURE_THRESHOLD
 from custom_components.solarbridge.coordinator import SolarBridgeCoordinator
-from custom_components.solarbridge.modbus import ModbusConnectionError, ReconnectBackoffActive
+from custom_components.solarbridge.modbus import ReconnectBackoffActive
 
 
 class SequenceClient:

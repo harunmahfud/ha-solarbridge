@@ -8,8 +8,11 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.components.modbus import async_get_temporary_unit
 from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
+from modbus_connection import ModbusConnectionError, ModbusExceptionError, ModbusTcpParams, ModbusTimeoutError
 
 from .const import (
     CONF_POLL_INTERVAL,
@@ -21,7 +24,7 @@ from .const import (
     DOMAIN,
     MIN_POLL_INTERVAL,
 )
-from .modbus import ModbusConnectionError, ModbusResponseError, SolarBridgeModbusClient
+from .modbus import SolarBridgeModbusClient
 from .profile import async_available_profiles, async_load_profile, read_ranges
 
 _HOSTNAME = re.compile(
@@ -71,10 +74,9 @@ async def _async_schema(
 
 async def _probe(hass, values: dict[str, Any]) -> None:
     profile = await async_load_profile(hass, values[CONF_PROFILE])
-    client = SolarBridgeModbusClient(
-        values[CONF_HOST], values[CONF_PORT], values[CONF_UNIT_ID], hass.async_add_executor_job
-    )
-    await client.async_read(read_ranges(profile, "fast")[:1])
+    params = ModbusTcpParams(host=values[CONF_HOST], port=values[CONF_PORT])
+    async with async_get_temporary_unit(hass, params, values[CONF_UNIT_ID]) as unit:
+        await SolarBridgeModbusClient(unit).async_read(read_ranges(profile, "fast")[:1])
 
 
 class SolarBridgeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -96,9 +98,9 @@ class SolarBridgeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._abort_if_unique_id_configured()
                 try:
                     await _probe(self.hass, user_input)
-                except ModbusConnectionError:
+                except (HomeAssistantError, ModbusConnectionError, ModbusTimeoutError):
                     errors["base"] = "cannot_connect"
-                except ModbusResponseError:
+                except ModbusExceptionError:
                     errors["base"] = "invalid_unit_or_profile"
                 except Exception:
                     errors["base"] = "unknown"
@@ -131,9 +133,9 @@ class SolarBridgeOptionsFlow(config_entries.OptionsFlow):
                 probe_values = {**defaults, **user_input}
                 try:
                     await _probe(self.hass, probe_values)
-                except ModbusConnectionError:
+                except (HomeAssistantError, ModbusConnectionError, ModbusTimeoutError):
                     errors["base"] = "cannot_connect"
-                except ModbusResponseError:
+                except ModbusExceptionError:
                     errors["base"] = "invalid_unit_or_profile"
                 except Exception:
                     errors["base"] = "unknown"

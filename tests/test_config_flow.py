@@ -2,7 +2,7 @@
 
 import json
 import logging
-from importlib.metadata import version
+from contextlib import asynccontextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -11,9 +11,10 @@ from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.loader import async_get_integration
 from homeassistant.setup import async_setup_component
-from packaging.requirements import Requirement
+from modbus_connection import ModbusTcpParams
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.solarbridge.config_flow import _probe
 from custom_components.solarbridge.const import (
     CONF_POLL_INTERVAL,
     CONF_PROFILE,
@@ -32,11 +33,33 @@ USER_INPUT = {
 }
 
 
-def test_pymodbus_requirement_accepts_home_assistant_version():
-    """Do not conflict with the pymodbus version constrained by Home Assistant."""
-    requirement = Requirement(json.loads(MANIFEST.read_text())["requirements"][0])
+def test_manifest_uses_home_assistant_modbus_connection():
+    """Use Home Assistant's transport dependency instead of a private client."""
+    manifest = json.loads(MANIFEST.read_text())
 
-    assert version("pymodbus") in requirement.specifier
+    assert manifest["dependencies"] == ["modbus"]
+    assert "requirements" not in manifest
+
+
+async def test_probe_uses_temporary_shared_modbus_unit(hass):
+    """Release config-flow connections after probing the first fast range."""
+    unit = AsyncMock()
+    unit.read_holding_registers.return_value = [0]
+
+    @asynccontextmanager
+    async def temporary_unit(_hass, params, unit_id):
+        assert (_hass, params, unit_id) == (
+            hass,
+            ModbusTcpParams(host=USER_INPUT[CONF_HOST], port=USER_INPUT[CONF_PORT]),
+            USER_INPUT[CONF_UNIT_ID],
+        )
+        yield unit
+
+    with patch("custom_components.solarbridge.config_flow.async_get_temporary_unit", temporary_unit):
+        await _probe(hass, USER_INPUT)
+
+    unit.read_holding_registers.assert_awaited_once_with(79, 1)
+    unit.read_input_registers.assert_not_awaited()
 
 
 async def test_user_config_flow_loads_and_creates_entry(hass):
