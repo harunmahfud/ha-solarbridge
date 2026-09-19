@@ -10,13 +10,16 @@ SolarBridge is read-only. Write support is deliberately excluded from v1: incorr
 ## Features
 
 - UI config and options flows accepting IP addresses and hostnames
-- Lazy DNS resolution on reconnect, serialized Modbus access, and exponential reconnect backoff that preserves last-known-good data without counting deferred polls as failed connection attempts
+- Home Assistant-managed persistent Modbus connections shared safely across integrations and unit IDs
+- Lazy connection and reconnection, serialized asynchronous access, and exponential reconnect backoff that preserves last-known-good data without counting deferred polls as failed connection attempts
 - Profile-declared fast and slow polling tiers (minimum fast interval: 1 second)
 - Correct Home Assistant device/state classes, diagnostics, and stable `{entry_id}_{register_key}` unique IDs
 - Versioned, schema-validated register profiles and automatic unavailability after three consecutive read or decode failures
 - Multiple independent inverter config entries
 
 ## HACS installation
+
+SolarBridge requires Home Assistant 2026.9.0 or newer.
 
 1. Open **HACS → Integrations**.
 2. Select **⋮ → Custom repositories**.
@@ -66,7 +69,7 @@ python -m venv .venv
 .venv/bin/ruff check custom_components tests
 ```
 
-Raw register payloads are available only at debug log level under `custom_components.solarbridge` / `pymodbus`. Download redacted diagnostics from the integration's device page when reporting a problem.
+Raw register payloads are available only at debug log level under `custom_components.solarbridge` / `tmodbus`. Download redacted diagnostics from the integration's device page when reporting a problem.
 
 ## Lineage
 

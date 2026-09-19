@@ -1,4 +1,5 @@
 {
+  "homeassistant": "2026.9.0",
   "name": "SolarBridge",
   "render_readme": true,
   "content_in_root": false
