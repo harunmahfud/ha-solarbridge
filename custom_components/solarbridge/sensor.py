@@ -43,5 +43,25 @@ class SolarBridgeSensor(CoordinatorEntity, SensorEntity):
         )
 
     @property
+    def available(self):
+        """Expose only thresholds and levels matching the inverter's control basis."""
+        required_mode = self._description.get("battery_mode")
+        return super().available and (
+            required_mode is None or self.coordinator.data.get("battery_mode") == required_mode
+        )
+
+    @property
     def native_value(self):
         return self.coordinator.data.get(self._description["key"])
+
+    @property
+    def extra_state_attributes(self):
+        """Keep the inverter's battery control basis alongside its measurements."""
+        if self._description["key"] not in {"battery_voltage", "battery_soc"}:
+            return None
+        if not any(sensor["key"] == "battery_mode" for sensor in self.coordinator.profile["sensors"]):
+            return None
+        return {
+            "battery_mode": self.coordinator.data.get("battery_mode", "Unknown"),
+            "battery_type": self.coordinator.data.get("battery_type", "Unknown"),
+        }
