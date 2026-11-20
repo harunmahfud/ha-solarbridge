@@ -1,10 +1,11 @@
 """SolarBridge setup wiring regressions."""
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.helpers import entity_registry as er
-from modbus_connection import ModbusTcpParams
+from modbus_connection import ModbusConnectionError, ModbusTcpParams
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.solarbridge import async_setup_entry
@@ -94,9 +95,11 @@ async def test_battery_mode_selects_voltage_or_capacity_entities_live(hass):
         272: 55,
         273: 66,
     }
-    unit = MagicMock()
-    unit.read_holding_registers = AsyncMock(
-        side_effect=lambda start, count: [raw.get(i, 0) for i in range(start, start + count)]
+    # No write methods: setup, refresh, and reload must work with a read-only unit.
+    unit = SimpleNamespace(
+        read_holding_registers=AsyncMock(
+            side_effect=lambda start, count: [raw.get(i, 0) for i in range(start, start + count)]
+        )
     )
     registry = er.async_get(hass)
 
@@ -123,8 +126,29 @@ async def test_battery_mode_selects_voltage_or_capacity_entities_live(hass):
             assert state(f"tou_voltage_{slot}").state == value
             assert state(f"tou_soc_{slot}").state == "unavailable"
 
+        # External/cloud changes must appear on the very next poll, not a cached minute later.
+        raw.update({220: 4537, 221: 5183, 222: 4879})
+        for slot in range(1, 7):
+            raw[249 + slot] = slot * 300 + 17
+            raw[255 + slot] = slot * 401
+            raw[261 + slot] = 5400 + slot * 13
+            raw[273 + slot] = slot % 4
+        unchanged = dict(raw)
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+        assert state("battery_shutdown_voltage").state == "45.37"
+        assert state("battery_restart_voltage").state == "51.83"
+        assert state("battery_low_voltage").state == "48.79"
+        for slot, voltage in enumerate(["54.13", "54.26", "54.39", "54.52", "54.65", "54.78"], 1):
+            assert state(f"tou_time_{slot}").state == f"{slot * 3:02d}:17"
+            assert state(f"tou_power_{slot}").state == str(slot * 401)
+            assert state(f"tou_voltage_{slot}").state == voltage
+            assert state(f"tou_{slot}_grid_charge").state == ("Enabled" if slot % 2 else "Disabled")
+            assert state(f"tou_{slot}_generator_charge").state == ("Enabled" if slot % 4 >= 2 else "Disabled")
+        assert raw == unchanged
+
         # Chemistry and control basis are independent settings.
-        raw.update({200: 0, 213: 1})
+        raw.update({200: 0, 213: 1, 268: 97, 269: 89, 270: 81, 271: 73, 272: 65, 273: 57})
         await coordinator.async_refresh()
         await hass.async_block_till_done()
         assert state("battery_type").state == "Lead-acid"
@@ -135,7 +159,7 @@ async def test_battery_mode_selects_voltage_or_capacity_entities_live(hass):
         for key, value in {"shutdown": "13", "restart": "27", "low": "21"}.items():
             assert state(f"battery_{key}_soc").state == value
             assert state(f"battery_{key}_voltage").state == "unavailable"
-        for slot, value in enumerate(["11", "22", "33", "44", "55", "66"], 1):
+        for slot, value in enumerate(["97", "89", "81", "73", "65", "57"], 1):
             assert state(f"tou_soc_{slot}").state == value
             assert state(f"tou_voltage_{slot}").state == "unavailable"
 
@@ -153,8 +177,24 @@ async def test_battery_mode_selects_voltage_or_capacity_entities_live(hass):
             ]:
                 assert state(key).state == "unavailable"
 
-        coordinator.async_set_update_error(RuntimeError("offline"))
+        # Do not present old settings as current after even one failed read.
+        unit.read_holding_registers.side_effect = ModbusConnectionError("offline")
+        await coordinator.async_refresh()
         await hass.async_block_till_done()
         assert state("battery_voltage").state == "unavailable"
+        assert "battery_mode" not in state("battery_voltage").attributes
+        assert "battery_type" not in state("battery_voltage").attributes
         assert state("battery_mode").state == "unavailable"
+        assert state("tou_time_1").state == "unavailable"
+        raw.update({213: 0, 262: 5789})
+        unit.read_holding_registers.side_effect = lambda start, count: [
+            raw.get(i, 0) for i in range(start, start + count)
+        ]
+        # A fresh setup must read externally changed values, never restore previous settings.
+        unchanged = dict(raw)
+        assert await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done()
+        assert state("battery_mode").state == "Voltage"
+        assert state("tou_voltage_1").state == "57.89"
+        assert raw == unchanged
         assert await hass.config_entries.async_unload(entry.entry_id)
