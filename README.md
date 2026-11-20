@@ -16,6 +16,7 @@ SolarBridge is read-only. Write support is deliberately excluded from v1: incorr
 - Correct Home Assistant device/state classes, diagnostics, and stable `{entry_id}_{register_key}` unique IDs
 - Versioned, schema-validated register profiles and automatic unavailability after three consecutive read or decode failures
 - Multiple independent inverter config entries
+- Automatic voltage/capacity battery-mode detection, mode-appropriate protection thresholds, and voltage-based time-of-use targets
 
 ## HACS installation
 
@@ -37,6 +38,37 @@ The SM2-P profile reads only `3–112`, `150–279`, and `312–319`, all within
 The profile also reads the Li-BMS telemetry block at registers `312–319`. Register 183 is the inverter's battery-terminal voltage, while register 317 is the voltage reported by the BMS; small differences between them are expected. The BMS block was validated by direct FC03 reads from the supported SUN-6K-SG05LP1-EU-SM2-P.
 
 Register `0x009A` (154) is exposed read-only as **Inverter Output Voltage** (`uint16`, 0.1 V), following maintained Deye/Sunsynk single-phase register maps. The existing `150–249` read already includes this register, so the entity adds no Modbus request. Physical comparison with the SUN-6K-SG05LP1-EU-SM2-P inverter display was not possible in automated validation; treat the value as model-specific and verify it before relying on it for diagnostics.
+
+### Battery control mode
+
+Battery chemistry and control basis are separate inverter settings. SolarBridge
+reads **Battery type** at register 200 (`0`: Lead-acid, `1`: Lithium) and
+**Battery operation mode** at register 213 (`0`: Voltage, `1`: Capacity,
+`2`: No battery). It never infers voltage mode from chemistry or BMS readings.
+
+| Control basis | Live level | Shutdown / restart / low thresholds | Time-of-use targets |
+| --- | --- | --- | --- |
+| Voltage | `battery_voltage`, register 183, 0.01 V | `battery_shutdown_voltage`, `battery_restart_voltage`, `battery_low_voltage`, registers 220–222, 0.01 V | `tou_voltage_1`–`tou_voltage_6`, registers 262–267, 0.01 V |
+| Capacity | `battery_soc`, register 184, % | `battery_shutdown_soc`, `battery_restart_soc`, `battery_low_soc`, registers 217–219, % | `tou_soc_1`–`tou_soc_6`, registers 268–273, % |
+
+SOC and mode-specific thresholds/TOU entities become unavailable when their
+control basis is inactive, unknown, or set to No battery. Mode changes take
+effect on the next fast poll, including availability of cached slow-tier TOU
+targets. Battery-terminal voltage remains available as a physical measurement.
+Both level entities include `battery_mode` and `battery_type` state attributes
+for dashboards. All entity IDs and units stay stable: volts never replace the
+value of a percentage entity, and no generic voltage-to-SOC curve is assumed.
+The separate BMS entities remain literal BMS register readings, not a fallback
+for a voltage-controlled battery's level.
+
+These settings use registers already covered by the existing reads and add no
+Modbus requests. Definitions follow the original [Deye Modbus protocol
+V118](https://github.com/user-attachments/files/16597960/Deye.Modbus.protocol.V118.pdf),
+pages 21–24, cross-checked against the maintained
+[SG0*LP1 mapping](https://github.com/davidrapan/ha-solarman/blob/main/custom_components/solarman/inverter_definitions/deye_hybrid.yaml).
+Automated tests validate decoding and live mode changes, but these newly
+exposed settings have not been compared with the physical inverter display;
+verify them on your firmware before relying on them for diagnostics.
 
 ### Power sign semantics
 

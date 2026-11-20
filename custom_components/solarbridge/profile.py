@@ -115,6 +115,8 @@ def validate_profile(profile: dict[str, Any]) -> None:
             raise ProfileError("Sensor function must be 3 or 4")
         if sensor["polling_tier"] not in SUPPORTED_TIERS:
             raise ProfileError("Sensor polling_tier must be fast or slow")
+        if sensor.get("battery_mode") not in {None, "Voltage", "Capacity", "No battery"}:
+            raise ProfileError("Sensor battery_mode must be Voltage, Capacity, or No battery")
         if sensor["word_order"] not in {"low_high", "high_low"}:
             raise ProfileError("word_order must be low_high or high_low")
         register_count = sensor.get("register_count", 2 if sensor["data_type"] == "uint32" else 1)
@@ -124,3 +126,5 @@ def validate_profile(profile: dict[str, Any]) -> None:
         for address in addresses:
             if sensor["polling_tier"] not in coverage.get((sensor["function"], address), set()):
                 raise ProfileError(f"{sensor['key']} register {address} is not covered by its polling tier")
+    if any("battery_mode" in sensor for sensor in profile["sensors"]) and "battery_mode" not in seen:
+        raise ProfileError("Mode-dependent sensors require a battery_mode sensor")

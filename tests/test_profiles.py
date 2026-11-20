@@ -83,6 +83,18 @@ def test_uncovered_register_is_rejected():
         validate_profile(invalid)
 
 
+def test_mode_conditions_require_a_known_mode_and_its_sensor():
+    profile = load_profile("deye_sg05lp1_eu_sm2_p.yaml")
+    invalid = deepcopy(profile)
+    invalid["sensors"][0]["battery_mode"] = "Lithium"
+    with pytest.raises(ProfileError, match="Sensor battery_mode must be"):
+        validate_profile(invalid)
+    invalid = deepcopy(profile)
+    invalid["sensors"] = [sensor for sensor in invalid["sensors"] if sensor["key"] != "battery_mode"]
+    with pytest.raises(ProfileError, match="require a battery_mode sensor"):
+        validate_profile(invalid)
+
+
 def test_every_entity_name_is_translated():
     profile = load_profile("deye_sg05lp1_eu_sm2_p.yaml")
     component = PROFILE_DIR.parents[1]
