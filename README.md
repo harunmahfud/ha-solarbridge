@@ -11,10 +11,10 @@ SolarBridge is read-only. Write support is deliberately excluded from v1: incorr
 
 - UI config and options flows accepting IP addresses and hostnames
 - Home Assistant-managed persistent Modbus connections shared safely across integrations and unit IDs
-- Lazy connection and reconnection, serialized asynchronous access, and exponential reconnect backoff that preserves last-known-good data without counting deferred polls as failed connection attempts
+- Lazy connection and reconnection, serialized asynchronous access, and exponential reconnect backoff without presenting last-known data as a successful fresh read
 - Profile-declared fast and slow polling tiers (minimum fast interval: 1 second)
 - Correct Home Assistant device/state classes, diagnostics, and stable `{entry_id}_{register_key}` unique IDs
-- Versioned, schema-validated register profiles and automatic unavailability after three consecutive read or decode failures
+- Versioned, schema-validated register profiles and immediate unavailability after a failed or backoff-deferred poll
 - Multiple independent inverter config entries
 - Automatic voltage/capacity battery-mode detection, mode-appropriate protection thresholds, and voltage-based time-of-use targets
 
@@ -53,7 +53,7 @@ reads **Battery type** at register 200 (`0`: Lead-acid, `1`: Lithium) and
 
 SOC and mode-specific thresholds/TOU entities become unavailable when their
 control basis is inactive, unknown, or set to No battery. Mode changes take
-effect on the next fast poll, including availability of cached slow-tier TOU
+effect on the next successful fast poll, together with freshly read TOU
 targets. Battery-terminal voltage remains available as a physical measurement.
 Both level entities include `battery_mode` and `battery_type` state attributes
 for dashboards. All entity IDs and units stay stable: volts never replace the
@@ -61,14 +61,47 @@ value of a percentage entity, and no generic voltage-to-SOC curve is assumed.
 The separate BMS entities remain literal BMS register readings, not a fallback
 for a voltage-controlled battery's level.
 
-These settings use registers already covered by the existing reads and add no
-Modbus requests. Definitions follow the original [Deye Modbus protocol
+These settings use registers already covered by the existing read ranges.
+Definitions follow the original [Deye Modbus protocol
 V118](https://github.com/user-attachments/files/16597960/Deye.Modbus.protocol.V118.pdf),
 pages 21–24, cross-checked against the maintained
 [SG0*LP1 mapping](https://github.com/davidrapan/ha-solarman/blob/main/custom_components/solarman/inverter_definitions/deye_hybrid.yaml).
 Automated tests validate decoding and live mode changes, but these newly
 exposed settings have not been compared with the physical inverter display;
 verify them on your firmware before relying on them for diagnostics.
+
+### External changes and Weather Shield
+
+Operation mode, battery type, protection thresholds, and every TOU time, power,
+SOC/voltage target and grid/generator charge flag are read on each configured
+fast poll (10 seconds by default). The `250–279` TOU block now runs every fast
+poll rather than once a minute; other slow telemetry remains on the 60-second
+tier. Values reflect the last completed device read, not instantaneous changes
+between polls. The existing addresses, scales, units, and entity IDs are unchanged.
+
+Any failed or backoff-deferred poll marks entities unavailable immediately,
+rather than displaying cached settings as current for three failed attempts.
+Home Assistant omits battery mode/type attributes while those entities are unavailable.
+Recovery and reload read the inverter again; nothing is restored or written back.
+
+The [Deye Cloud App User Manual V2.2](https://eo.deyeinverter.com/deyeinverter/2026/10/14/DeyeCloudAppUserManual-cLdm.pdf),
+section 6.3.3, describes Weather Shield overriding existing strategies and preset
+values when severe weather is forecast. SolarBridge displays those changes just
+like changes from the inverter panel, another integration, or an automation.
+No verified local Weather Shield-active register is known for this profile.
+High targets or enabled grid charging do not prove a storm override, so no
+inferred active indicator is exposed. Check the Deye Cloud app for its actual
+Weather Shield status, alerts, and command records.
+
+To investigate a settings change, retain exact before/after values and timestamps.
+In HA History/Logbook inspect Battery operation mode, Battery type, the applicable
+voltage/SOC thresholds, and TOU time/target/grid-charge/generator-charge sensors
+for all affected slots. Find their actual entity IDs on the integration device
+page; entity names may have been customized. Check the owning integration of
+any writable `number`, `select`, `switch`, or `time` entities, plus automation and
+script traces near the change. SolarBridge itself creates only `sensor` entities
+and registers no write services. Sensor history shows when a change was observed,
+not who wrote it; correlate with cloud command logs and available HA context.
 
 ### Power sign semantics
 
