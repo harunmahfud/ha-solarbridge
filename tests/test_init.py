@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.helpers import entity_registry as er
-from modbus_connection import ModbusConnectionError, ModbusTcpParams
+from modbus_connection import ModbusTcpParams, ModbusTimeoutError
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.solarbridge import async_setup_entry
@@ -97,9 +97,10 @@ async def test_battery_mode_selects_voltage_or_capacity_entities_live(hass):
     }
     # No write methods: setup, refresh, and reload must work with a read-only unit.
     unit = SimpleNamespace(
+        disconnect=AsyncMock(),
         read_holding_registers=AsyncMock(
             side_effect=lambda start, count: [raw.get(i, 0) for i in range(start, start + count)]
-        )
+        ),
     )
     registry = er.async_get(hass)
 
@@ -177,10 +178,18 @@ async def test_battery_mode_selects_voltage_or_capacity_entities_live(hass):
             ]:
                 assert state(key).state == "unavailable"
 
-        # Do not present old settings as current after even one failed read.
-        unit.read_holding_registers.side_effect = ModbusConnectionError("offline")
-        await coordinator.async_refresh()
-        await hass.async_block_till_done()
+        # Keep the last good settings for two failed polls (each exhausting its retry).
+        unit.read_holding_registers.side_effect = ModbusTimeoutError("offline")
+        with patch("custom_components.solarbridge.modbus.monotonic", return_value=100.0) as clock:
+            for now in (100.0, 101.0, 103.0):
+                clock.return_value = now
+                await coordinator.async_refresh()
+                if now < 103.0:
+                    assert state("battery_mode").state == "99"
+                    assert state("tou_time_1").state == "03:17"
+            assert state("battery_mode").state == "unavailable"
+            # An immediate refresh is deferred and cannot make stale settings available again.
+            await coordinator.async_refresh()
         assert state("battery_voltage").state == "unavailable"
         assert "battery_mode" not in state("battery_voltage").attributes
         assert "battery_type" not in state("battery_voltage").attributes
