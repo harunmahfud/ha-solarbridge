@@ -1,5 +1,7 @@
 """Shared Modbus unit and reconnect-backoff regressions."""
 
+import logging
+from asyncio import Event
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -34,9 +36,10 @@ class SequenceUnit:
 RANGE = ReadRange(start=79, count=1, function=3, tier="fast")
 
 
-async def test_reads_holding_and_input_ranges_from_shared_unit():
-    unit = SequenceUnit([[10, 11], [20]])
+async def test_retries_only_the_failed_range_and_logs_both_attempts(caplog):
+    unit = SequenceUnit([[10, 11], ModbusTimeoutError("timeout"), [20]])
     client = SolarBridgeModbusClient(unit)
+    caplog.set_level(logging.DEBUG, logger="custom_components.solarbridge.modbus")
 
     values = await client.async_read(
         [
@@ -46,14 +49,40 @@ async def test_reads_holding_and_input_ranges_from_shared_unit():
     )
 
     assert values == {100: 10, 101: 11, 200: 20}
-    assert unit.calls == [(3, 100, 2), (4, 200, 1)]
+    assert unit.calls == [(3, 100, 2), (4, 200, 1), (4, 200, 1)]
+    assert len(caplog.messages) == 3
+    assert "FC04 range=200-200 attempt=1 duration=" in caplog.messages[1]
+    assert caplog.messages[1].endswith("failed: timeout")
+    assert "FC04 range=200-200 attempt=2 duration=" in caplog.messages[2]
+    assert caplog.messages[2].endswith("raw=[20]")
+
+
+async def test_read_deadline_cancels_both_attempts_and_enters_backoff():
+    async def no_response(_address, _count):
+        await Event().wait()
+
+    unit = SequenceUnit([])
+    unit.read_holding_registers = AsyncMock(side_effect=no_response)
+    client = SolarBridgeModbusClient(unit)
+    with (
+        patch("custom_components.solarbridge.modbus._READ_TIMEOUT", 0),
+        pytest.raises(ModbusTimeoutError, match="Response timeout"),
+    ):
+        await client.async_read([RANGE])
+
+    with pytest.raises(ReconnectBackoffActive):
+        await client.async_read([RANGE])
+    assert unit.read_holding_registers.await_count == 2
 
 
 async def test_exponential_backoff_boundary_retry_and_success_reset():
     unit = SequenceUnit(
         [
+            ModbusConnectionError("first attempt"),
             ModbusConnectionError("first"),
+            ModbusConnectionError("first attempt"),
             ModbusConnectionError("second"),
+            ModbusConnectionError("first attempt"),
             ModbusConnectionError("third"),
             [1],
         ]
@@ -79,12 +108,12 @@ async def test_exponential_backoff_boundary_retry_and_success_reset():
         now = 107.0
         assert await client.async_read([RANGE]) == {79: 1}
 
-    assert len(unit.calls) == 4
+    assert len(unit.calls) == 7
     assert (client._retry_at, client._backoff) == (0.0, 1.0)
 
 
 async def test_near_boundary_backoff_skips_unit_without_displaying_zero():
-    unit = SequenceUnit([ModbusConnectionError("offline"), [1]])
+    unit = SequenceUnit([ModbusConnectionError("offline"), ModbusConnectionError("offline"), [1]])
     client = SolarBridgeModbusClient(unit)
     now = 100.0
 
@@ -98,16 +127,16 @@ async def test_near_boundary_backoff_skips_unit_without_displaying_zero():
         assert raised.value.remaining == pytest.approx(0.04)
         assert str(raised.value) == "Reconnect backoff active for 0.1s"
         assert "0.0s" not in str(raised.value)
-        assert len(unit.calls) == 1
+        assert len(unit.calls) == 2
 
         now = 101.0
         assert await client.async_read([RANGE]) == {79: 1}
 
-    assert len(unit.calls) == 2
+    assert len(unit.calls) == 3
 
 
 async def test_third_consecutive_timeout_disconnects_wedged_shared_connection():
-    unit = SequenceUnit([ModbusTimeoutError("timeout") for _ in range(3)])
+    unit = SequenceUnit([ModbusTimeoutError("timeout") for _ in range(6)])
     client = SolarBridgeModbusClient(unit)
     now = 100.0
 
@@ -124,8 +153,11 @@ async def test_success_resets_timeout_disconnect_threshold():
     unit = SequenceUnit(
         [
             ModbusTimeoutError("first"),
+            ModbusTimeoutError("first"),
+            ModbusTimeoutError("second"),
             ModbusTimeoutError("second"),
             [1],
+            ModbusTimeoutError("third"),
             ModbusTimeoutError("third"),
         ]
     )

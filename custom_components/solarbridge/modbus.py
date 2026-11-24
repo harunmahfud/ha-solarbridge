@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from asyncio import timeout
 from math import ceil
 from time import monotonic
 
@@ -11,6 +12,7 @@ from modbus_connection import ModbusConnectionError, ModbusError, ModbusTimeoutE
 from .profile import ReadRange
 
 _LOGGER = logging.getLogger(__name__)
+_READ_TIMEOUT = 5.0
 
 
 class ReconnectBackoffActive(ModbusConnectionError):
@@ -39,19 +41,7 @@ class SolarBridgeModbusClient:
         values: dict[int, int] = {}
         try:
             for request in ranges:
-                method = (
-                    self._unit.read_holding_registers
-                    if request.function == 3
-                    else self._unit.read_input_registers
-                )
-                registers = await method(request.start, request.count)
-                _LOGGER.debug(
-                    "FC%02d range=%s-%s raw=%s",
-                    request.function,
-                    request.start,
-                    request.start + request.count - 1,
-                    registers,
-                )
+                registers = await self._async_read_range(request)
                 values.update({request.start + offset: value for offset, value in enumerate(registers)})
         except ModbusError as err:
             self._retry_at = monotonic() + self._backoff
@@ -67,3 +57,27 @@ class SolarBridgeModbusClient:
         self._retry_at = 0.0
         self._timeouts = 0
         return values
+
+    async def _async_read_range(self, request: ReadRange) -> list[int]:
+        method = self._unit.read_holding_registers if request.function == 3 else self._unit.read_input_registers
+        end = request.start + request.count - 1
+        for attempt in (1, 2):
+            start = monotonic()
+            try:
+                async with timeout(_READ_TIMEOUT):
+                    registers = await method(request.start, request.count)
+            except (ModbusError, TimeoutError) as err:
+                _LOGGER.debug(
+                    "FC%02d range=%s-%s attempt=%s duration=%.3fs failed: %s",
+                    request.function, request.start, end, attempt, monotonic() - start, str(err) or "timeout",
+                )
+                if attempt == 2:
+                    if not isinstance(err, ModbusError):
+                        raise ModbusTimeoutError(f"Response timeout after {_READ_TIMEOUT} seconds") from err
+                    raise
+            else:
+                _LOGGER.debug(
+                    "FC%02d range=%s-%s attempt=%s duration=%.3fs raw=%s",
+                    request.function, request.start, end, attempt, monotonic() - start, registers,
+                )
+                return registers

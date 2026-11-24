@@ -2,7 +2,8 @@
 
 import logging
 
-import pytest
+from homeassistant.core import callback
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from modbus_connection import ModbusConnectionError
 
@@ -32,54 +33,70 @@ def make_coordinator(hass, client, data):
     return coordinator
 
 
-async def test_failures_and_backoff_never_return_cached_data(hass, caplog):
+async def test_failed_polls_and_backoff_preserve_data_until_a_real_recovery(hass, caplog):
     stale = {"battery_soc": 50}
     client = SequenceClient(
         [
             ModbusConnectionError("Unable to connect"),
             ReconnectBackoffActive(0.04),
-            ReconnectBackoffActive(0.01),
             ModbusConnectionError("Still offline"),
+            ModbusConnectionError("Third failure"),
+            ReconnectBackoffActive(0.01),
+            {184: 97},
+            ModbusConnectionError("New failure streak"),
         ]
     )
     coordinator = make_coordinator(hass, client, stale)
-    caplog.set_level(logging.DEBUG, logger="custom_components.solarbridge.coordinator")
-
-    for _ in range(4):
-        with pytest.raises(UpdateFailed):
-            await coordinator._async_update_data()
-    assert "SolarBridge poll deferred: Reconnect backoff active for 0.1s" in caplog.messages
-    assert not any("0.0s" in message for message in caplog.messages)
-
-
-async def test_first_genuine_failure_marks_update_failed(hass):
-    client = SequenceClient([ModbusConnectionError("offline")])
-    coordinator = make_coordinator(hass, client, {"last": "good"})
-
-    with pytest.raises(UpdateFailed, match="Modbus polling failed: offline"):
-        await coordinator._async_update_data()
-
-
-async def test_success_after_failure_publishes_new_values(hass):
-    client = SequenceClient([ModbusConnectionError("transient"), {184: 97}])
-    coordinator = make_coordinator(hass, client, {"battery_soc": 50})
     coordinator.profile["sensors"] = [{
         "key": "battery_soc", "address": 184, "data_type": "uint16",
         "scale": 1, "offset": 0, "polling_tier": "fast",
     }]
+    caplog.set_level(logging.DEBUG, logger="custom_components.solarbridge.coordinator")
+    notifications = []
 
-    with pytest.raises(UpdateFailed):
-        await coordinator._async_update_data()
-    assert await coordinator._async_update_data() == {"battery_soc": 97}
+    @callback
+    def record_update():
+        notifications.append((coordinator.last_update_success, coordinator.data))
+
+    unsubscribe = coordinator.async_add_listener(record_update)
+    try:
+        for _ in range(3):  # Failure, deferred poll, failure.
+            await coordinator.async_refresh()
+            assert coordinator.last_update_success
+            assert coordinator.data == stale
+        assert not notifications
+        assert "SolarBridge poll failed (1/3): Unable to connect" in caplog.messages
+        assert "SolarBridge poll failed (2/3): Still offline" in caplog.messages
+        assert "SolarBridge poll deferred: Reconnect backoff active for 0.1s" in caplog.messages
+
+        await coordinator.async_refresh()
+        assert not coordinator.last_update_success
+        assert isinstance(coordinator.last_exception, UpdateFailed)
+        assert notifications == [(False, stale)]
+
+        failure = coordinator.last_exception
+        await coordinator.async_refresh()
+        assert not coordinator.last_update_success
+        assert coordinator.last_exception is failure
+        assert notifications == [(False, stale)]
+        assert "Fetching SolarBridge data recovered" not in caplog.messages
+
+        await coordinator.async_refresh()
+        assert coordinator.last_update_success
+        assert notifications == [(False, stale), (True, {"battery_soc": 97})]
+        await coordinator.async_refresh()
+        assert coordinator.last_update_success
+        assert "SolarBridge poll failed (1/3): New failure streak" in caplog.messages
+    finally:
+        unsubscribe()
 
 
-async def test_no_data_backoff_uses_retry_after(hass, caplog):
-    client = SequenceClient([ReconnectBackoffActive(0.04)])
+async def test_no_data_does_not_report_success(hass):
+    client = SequenceClient([ModbusConnectionError("offline"), ReconnectBackoffActive(0.04)])
     coordinator = make_coordinator(hass, client, None)
-    caplog.set_level(logging.WARNING, logger="custom_components.solarbridge.coordinator")
 
-    with pytest.raises(UpdateFailed, match="Modbus polling deferred") as raised:
-        await coordinator._async_update_data()
-
-    assert raised.value.retry_after == pytest.approx(0.04)
-    assert not caplog.records
+    for _ in range(2):
+        await coordinator.async_refresh()
+        assert not coordinator.last_update_success
+        assert coordinator.data is None
+        assert isinstance(coordinator.last_exception, ConfigEntryNotReady)
