@@ -39,6 +39,20 @@ The profile also reads the Li-BMS telemetry block at registers `312–319`. Regi
 
 Register `0x009A` (154) is exposed read-only as **Inverter Output Voltage** (`uint16`, 0.1 V), following maintained Deye/Sunsynk single-phase register maps. The existing `150–249` read already includes this register, so the entity adds no Modbus request. Physical comparison with the SUN-6K-SG05LP1-EU-SM2-P inverter display was not possible in automated validation; treat the value as model-specific and verify it before relying on it for diagnostics.
 
+### Battery capacity
+
+**Battery capacity** (`battery_capacity`) is a read-only diagnostic sensor for
+the inverter's configured battery capacity in **Ah**, not SOC, remaining charge,
+or a measured usable-capacity estimate. It reads storage-inverter register
+**204** (`uint16`, 1 Ah per count), already included in the `150–249` fast read,
+so it adds no Modbus requests and works in both Voltage and Capacity modes.
+The [Deye Modbus protocol V118](https://github.com/user-attachments/files/16597960/Deye.Modbus.protocol.V118.pdf#page=21),
+page 21, lists “Batt Capacity,” range `0–2000`, unit `1 Ah`, and
+“200 means 200AH.” Although the protocol marks the setting R/W, SolarBridge
+only reads it. No percentage or energy conversion is applied. Verify it against
+your inverter's configured value; this mapping has not been physically checked
+on the supported inverter during automated testing.
+
 ### Battery control mode
 
 Battery chemistry and control basis are separate inverter settings. SolarBridge
