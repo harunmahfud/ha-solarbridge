@@ -46,6 +46,7 @@
       "internal_ct_power":{"name":"Internal CT power"},"grid_power":{"name":"Grid power"},
       "external_ct_power":{"name":"External CT power"},"inverter_power":{"name":"Inverter power"},"load_power":{"name":"Load power"},
       "battery_type":{"name":"Battery type"},"battery_mode":{"name":"Battery operation mode"},
+      "battery_capacity":{"name":"Battery capacity"},
       "battery_shutdown_soc":{"name":"Battery shutdown SOC"},"battery_restart_soc":{"name":"Battery restart SOC"},"battery_low_soc":{"name":"Battery low SOC"},
       "battery_shutdown_voltage":{"name":"Battery shutdown voltage"},"battery_restart_voltage":{"name":"Battery restart voltage"},"battery_low_voltage":{"name":"Battery low voltage"},
       "tou_voltage_1":{"name":"Time of use voltage 1"},"tou_voltage_2":{"name":"Time of use voltage 2"},"tou_voltage_3":{"name":"Time of use voltage 3"},

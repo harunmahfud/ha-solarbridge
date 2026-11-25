@@ -58,6 +58,7 @@
     {"key":"pv2_current","name":"PV2 Current","address":112,"function":3,"data_type":"uint16","scale":0.1,"offset":0,"word_order":"low_high","polling_tier":"fast","unit":"A","device_class":"current","state_class":"measurement"},
 
     {"key":"battery_type","name":"Battery Type","address":200,"function":3,"data_type":"uint16","scale":1,"offset":0,"word_order":"low_high","polling_tier":"fast","entity_category":"diagnostic","lookup":{"0":"Lead-acid","1":"Lithium"}},
+    {"key":"battery_capacity","name":"Battery Capacity","address":204,"function":3,"data_type":"uint16","scale":1,"offset":0,"word_order":"low_high","polling_tier":"fast","unit":"Ah","icon":"mdi:battery","entity_category":"diagnostic"},
     {"key":"battery_mode","name":"Battery Operation Mode","address":213,"function":3,"data_type":"uint16","scale":1,"offset":0,"word_order":"low_high","polling_tier":"fast","entity_category":"diagnostic","lookup":{"0":"Voltage","1":"Capacity","2":"No battery"}},
     {"key":"battery_shutdown_soc","name":"Battery Shutdown SOC","address":217,"function":3,"data_type":"uint16","scale":1,"offset":0,"word_order":"low_high","polling_tier":"fast","unit":"%","device_class":"battery","entity_category":"diagnostic","battery_mode":"Capacity"},
     {"key":"battery_restart_soc","name":"Battery Restart SOC","address":218,"function":3,"data_type":"uint16","scale":1,"offset":0,"word_order":"low_high","polling_tier":"fast","unit":"%","device_class":"battery","entity_category":"diagnostic","battery_mode":"Capacity"},

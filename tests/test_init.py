@@ -74,6 +74,9 @@ async def test_battery_mode_selects_voltage_or_capacity_entities_live(hass):
         183: 5127,
         184: 87,
         200: 1,
+        203: 5544,
+        204: 321,
+        205: 4123,
         213: 0,
         217: 13,
         218: 27,
@@ -116,6 +119,9 @@ async def test_battery_mode_selects_voltage_or_capacity_entities_live(hass):
         coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
         assert state("battery_type").state == "Lithium"
         assert state("battery_mode").state == "Voltage"
+        assert state("battery_capacity").state == "321"
+        assert state("battery_capacity").attributes["unit_of_measurement"] == "Ah"
+        assert "device_class" not in state("battery_capacity").attributes
         assert state("battery_voltage").state == "51.27"
         assert state("battery_voltage").attributes["battery_mode"] == "Voltage"
         assert state("battery_soc").state == "unavailable"
@@ -128,7 +134,7 @@ async def test_battery_mode_selects_voltage_or_capacity_entities_live(hass):
             assert state(f"tou_soc_{slot}").state == "unavailable"
 
         # External/cloud changes must appear on the very next poll, not a cached minute later.
-        raw.update({220: 4537, 221: 5183, 222: 4879})
+        raw.update({204: 875, 220: 4537, 221: 5183, 222: 4879})
         for slot in range(1, 7):
             raw[249 + slot] = slot * 300 + 17
             raw[255 + slot] = slot * 401
@@ -137,6 +143,7 @@ async def test_battery_mode_selects_voltage_or_capacity_entities_live(hass):
         unchanged = dict(raw)
         await coordinator.async_refresh()
         await hass.async_block_till_done()
+        assert state("battery_capacity").state == "875"
         assert state("battery_shutdown_voltage").state == "45.37"
         assert state("battery_restart_voltage").state == "51.83"
         assert state("battery_low_voltage").state == "48.79"
@@ -154,6 +161,7 @@ async def test_battery_mode_selects_voltage_or_capacity_entities_live(hass):
         await hass.async_block_till_done()
         assert state("battery_type").state == "Lead-acid"
         assert state("battery_mode").state == "Capacity"
+        assert state("battery_capacity").state == "875"
         assert state("battery_soc").state == "87"
         assert state("battery_soc").attributes["unit_of_measurement"] == "%"
         assert state("battery_voltage").attributes["battery_mode"] == "Capacity"
@@ -195,7 +203,8 @@ async def test_battery_mode_selects_voltage_or_capacity_entities_live(hass):
         assert "battery_type" not in state("battery_voltage").attributes
         assert state("battery_mode").state == "unavailable"
         assert state("tou_time_1").state == "unavailable"
-        raw.update({213: 0, 262: 5789})
+        assert state("battery_capacity").state == "unavailable"
+        raw.update({204: 1200, 213: 0, 262: 5789})
         unit.read_holding_registers.side_effect = lambda start, count: [
             raw.get(i, 0) for i in range(start, start + count)
         ]
@@ -204,6 +213,7 @@ async def test_battery_mode_selects_voltage_or_capacity_entities_live(hass):
         assert await hass.config_entries.async_reload(entry.entry_id)
         await hass.async_block_till_done()
         assert state("battery_mode").state == "Voltage"
+        assert state("battery_capacity").state == "1200"
         assert state("tou_voltage_1").state == "57.89"
         assert raw == unchanged
         assert await hass.config_entries.async_unload(entry.entry_id)
